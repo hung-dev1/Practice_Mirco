@@ -1,0 +1,101 @@
+﻿services:
+
+  consul:
+    image: hashicorp/consul:1.19
+    container_name: asm_consul
+    restart: unless-stopped
+    command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp"
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - asm_network
+
+  authservice:
+    build:
+      context: .
+      dockerfile: AuthService/Dockerfile
+    container_name: asm_authservice
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=host.docker.internal;Port=5432;Database=user_miro;Username=postgres;Password=hung404*
+      - Jwt__SecretKey=your-super-secret-key-at-least-32-characters-long!
+      - Jwt__Issuer=AuthService
+      - Jwt__Audience=AuthService
+      - Jwt__AccessTokenExpiryMinutes=60
+      - Jwt__RefreshTokenExpiryDays=7
+      - Consul__Address=http://consul:8500
+      - Consul__ServiceId=authservice-1
+      - Consul__ServiceName=authservice
+      - Consul__ServiceHost=authservice
+      - Consul__ServicePort=8080
+    ports:
+      - "5001:8080"
+    depends_on:
+      consul:
+        condition: service_healthy
+    networks:
+      - asm_network
+
+  questionservice:
+    build:
+      context: .
+      dockerfile: QuestionService/Dockerfile
+    container_name: asm_questionservice
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=host.docker.internal;Port=5432;Database=question_mirco;Username=postgres;Password=hung404*
+      - Jwt__SecretKey=your-super-secret-key-at-least-32-characters-long!
+      - Jwt__Issuer=AuthService
+      - Jwt__Audience=AuthService
+      - Consul__Address=http://consul:8500
+      - Consul__ServiceId=questionservice-1
+      - Consul__ServiceName=questionservice
+      - Consul__ServiceHost=questionservice
+      - Consul__ServicePort=8080
+    ports:
+      - "5002:8080"
+    depends_on:
+      consul:
+        condition: service_healthy
+    networks:
+      - asm_network
+
+  apigateway:
+    build:
+      context: .
+      dockerfile: ApiGateway/Dockerfile
+    container_name: asm_apigateway
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Services__AuthService=http://authservice:8080
+      - Jwt__SecretKey=your-super-secret-key-at-least-32-characters-long!
+      - Jwt__Issuer=AuthService
+      - Jwt__Audience=AuthService
+    ports:
+      - "5000:8080"
+    depends_on:
+      consul:
+        condition: service_healthy
+      authservice:
+        condition: service_started
+      questionservice:
+        condition: service_started
+    networks:
+      - asm_network
+
+networks:
+  asm_network:
+    driver: bridge

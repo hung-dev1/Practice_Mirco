@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="ApiGateway/ApiGateway.csproj" />
+  <Project Path="AuthService/AuthService.csproj" />
+  <Project Path="QuestionService/QuestionService.csproj" Id="a3b8e311-cfe2-4056-925d-92d208792a4b" />
+  <Project Path="QuizService/QuizService.csproj" Id="2bc8bcb5-a1c1-4a54-af0c-a7933f115049" />
+  <Project Path="SharedLibrary/SharedLibrary.csproj" />
+</Solution>
