@@ -10,5 +10,6 @@ namespace QuestionService.Repository.Interface
         Task<Question> UpdateAsync(Question question);
         Task DeleteAsync(Question question);
         Task<bool> ExistsByIdAsync(long id);
+        Task<IEnumerable<Question>> GetRandomAsync(int count);
     }
 }

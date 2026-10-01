@@ -71,6 +71,13 @@ namespace QuestionService.Service.Implement
             await _repository.DeleteAsync(question);
         }
 
+        // ── RANDOM ────────────────────────────────────────────────────────────
+        public async Task<IEnumerable<QuestionResponse>> GetRandomAsync(int count = 10)
+        {
+            var questions = await _repository.GetRandomAsync(count);
+            return questions.Select(MapToResponse);
+        }
+
         // ── MAPPER ────────────────────────────────────────────────────────────
         private static QuestionResponse MapToResponse(Question q) => new()
         {

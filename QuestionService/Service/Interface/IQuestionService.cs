@@ -9,5 +9,6 @@ namespace QuestionService.Service.Interface
         Task<QuestionResponse> CreateAsync(CreateQuestionRequest request);
         Task<QuestionResponse> UpdateAsync(long id, UpdateQuestionRequest request);
         Task DeleteAsync(long id);
+        Task<IEnumerable<QuestionResponse>> GetRandomAsync(int count = 10);
     }
 }

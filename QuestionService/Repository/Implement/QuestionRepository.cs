@@ -45,5 +45,11 @@ namespace QuestionService.Repository.Implement
 
         public async Task<bool> ExistsByIdAsync(long id)
             => await _context.Questions.AnyAsync(q => q.Id == id);
+
+        public async Task<IEnumerable<Question>> GetRandomAsync(int count)
+            => await _context.Questions
+                             .OrderBy(q => EF.Functions.Random())
+                             .Take(count)
+                             .ToListAsync();
     }
 }

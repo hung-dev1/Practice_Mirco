@@ -16,6 +16,20 @@ namespace QuestionService.Controllers
             _service = service;
         }
 
+        // ── GET RANDOM ────────────────────────────────────────────────────────
+        // Mặc định 10 câu, có thể truyền ?count=5 để lấy số khác
+        [HttpGet("random")]
+        [Authorize(Roles = "ADMIN,TEACHER")]
+        public async Task<ActionResult<IEnumerable<QuestionResponse>>> GetRandom(
+            [FromQuery] int count = 10)
+        {
+            if (count <= 0 || count > 100)
+                return BadRequest(new { message = "count must be between 1 and 100." });
+
+            var questions = await _service.GetRandomAsync(count);
+            return Ok(questions);
+        }
+
         // ── GET ALL ───────────────────────────────────────────────────────────
         // Tất cả user đã đăng nhập đều xem được
         [HttpGet]
