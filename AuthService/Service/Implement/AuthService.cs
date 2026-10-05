@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace AuthService.Service.Implement
-{
+{   
     public class AuthServiceImpl : IAuthService
     {
         private readonly AppDbContext _context;

@@ -71,6 +71,33 @@
     networks:
       - asm_network
 
+  quizservice:
+    build:
+      context: .
+      dockerfile: QuizService/Dockerfile
+    container_name: asm_quizservice
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Services__QuestionService=http://questionservice:8080
+      - ConnectionStrings__DefaultConnection=Host=host.docker.internal;Port=5432;Database=quiz_mirco;Username=postgres;Password=hung404*
+      - Jwt__SecretKey=your-super-secret-key-at-least-32-characters-long!
+      - Jwt__Issuer=AuthService
+      - Jwt__Audience=AuthService
+      - Consul__Address=http://consul:8500
+      - Consul__ServiceId=quizservice-1
+      - Consul__ServiceName=quizservice
+      - Consul__ServiceHost=quizservice
+      - Consul__ServicePort=8080
+    ports:
+      - "5003:8080"
+    depends_on:
+      consul:
+        condition: service_healthy
+    networks:
+      - asm_network
+
   apigateway:
     build:
       context: .
@@ -92,6 +119,8 @@
       authservice:
         condition: service_started
       questionservice:
+        condition: service_started
+      quizservice:
         condition: service_started
     networks:
       - asm_network

@@ -4,6 +4,34 @@
   },
   "Routes": [
     {
+      "UpstreamPathTemplate": "/gateway/quizzes",
+      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "DownstreamPathTemplate": "/api/quizzes",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        { "Host": "quizservice", "Port": 8080 }
+      ],
+      "LoadBalancerOptions": { "Type": "LeastConnection" },
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "UpstreamPathTemplate": "/gateway/quizzes/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+      "DownstreamPathTemplate": "/api/quizzes/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        { "Host": "quizservice", "Port": 8080 }
+      ],
+      "LoadBalancerOptions": { "Type": "LeastConnection" },
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
       "UpstreamPathTemplate": "/gateway/auth/{everything}",
       "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
       "DownstreamPathTemplate": "/api/auth/{everything}",
