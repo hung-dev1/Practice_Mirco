@@ -76,9 +76,54 @@ var invalidRequest = new CreateQuizRequest { Title = " ", Duration = 0 };
 Check(!Validator.TryValidateObject(invalidRequest,
     new ValidationContext(invalidRequest), new List<ValidationResult>(), true));
 
+var submission = new SubmitQuizRequest
+{
+    Answers = new()
+    {
+        new() { QuestionId = 42, Answer = "a" },
+        new() { QuestionId = 43, Answer = "B" }
+    }
+};
+await Expect<InvalidOperationException>(() => service.SubmitQuizAsync(created.Id, submission, "Bearer student"));
+await service.UpdateAsync(created.Id, new UpdateQuizRequest { Title = "Active", Duration = 30, IsActive = true });
+var result = await service.SubmitQuizAsync(created.Id, submission, "Bearer student");
+Check(result.QuizId == created.Id && result.TotalQuestions == 3 && result.AnsweredQuestions == 2);
+Check(result.CorrectAnswers == 1 && result.Score == 3.33m);
+Check(transport.Authorization == "Bearer student");
+Check(repository.QuestionSaves == saves);
+var emptyResult = await service.SubmitQuizAsync(created.Id, new SubmitQuizRequest(), "Bearer student");
+Check(emptyResult.Score == 0 && emptyResult.AnsweredQuestions == 0);
+var fullResult = await service.SubmitQuizAsync(created.Id, new SubmitQuizRequest
+{
+    Answers = new() { new() { QuestionId = 42, Answer = "A" }, new() { QuestionId = 43, Answer = "A" }, new() { QuestionId = 44, Answer = "A" } }
+}, "Bearer student");
+Check(fullResult.Score == 10 && fullResult.CorrectAnswers == 3);
+calls = transport.Calls;
+await Expect<ArgumentException>(() => service.SubmitQuizAsync(created.Id, new SubmitQuizRequest
+{
+    Answers = new() { new() { QuestionId = 42, Answer = "A" }, new() { QuestionId = 42, Answer = "B" } }
+}, "Bearer student"));
+await Expect<ArgumentException>(() => service.SubmitQuizAsync(created.Id, new SubmitQuizRequest
+{
+    Answers = new() { new() { QuestionId = 999, Answer = "A" } }
+}, "Bearer student"));
+await Expect<ArgumentException>(() => service.SubmitQuizAsync(created.Id, new SubmitQuizRequest
+{
+    Answers = new() { new() { QuestionId = 42, Answer = "E" } }
+}, "Bearer student"));
+await Expect<ArgumentException>(() => service.SubmitQuizAsync(created.Id, new SubmitQuizRequest { Answers = null! }, "Bearer student"));
+await Expect<ArgumentException>(() => service.SubmitQuizAsync(0, submission, "Bearer student"));
+await Expect<KeyNotFoundException>(() => service.SubmitQuizAsync(999, submission, "Bearer student"));
+var emptyQuiz = await service.CreateAsync(new CreateQuizRequest { Title = "Empty", Duration = 30 }, 7);
+await Expect<InvalidOperationException>(() => service.SubmitQuizAsync(emptyQuiz.Id, new SubmitQuizRequest(), "Bearer student"));
+Check(transport.Calls == calls);
+transport.FailById = true;
+await Expect<ApiException>(() => service.SubmitQuizAsync(created.Id, submission, "Bearer student"));
+transport.FailById = false;
+
 await service.DeleteAsync(created.Id);
 Check(await service.GetByIdAsync(created.Id) is null && repository.Links.Count == 0);
-Console.WriteLine("PASS: Quiz CRUD, metadata, Refit routes/headers/default count, question ordering, duplicate handling, validation, missing resources, downstream failure without writes, delete links.");
+Console.WriteLine("PASS: Quiz CRUD, Refit routes/headers, question ordering, validation, downstream failures, submit scoring (partial/empty/full), duplicate/foreign/invalid answers, inactive/empty quizzes, delete links.");
 
 static void Check(bool value)
 {
@@ -130,6 +175,7 @@ sealed class QuestionTransport : HttpMessageHandler
     public string? Authorization { get; private set; }
     public int Calls { get; private set; }
     public bool FailRandom { get; set; }
+    public bool FailById { get; set; }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
@@ -141,7 +187,7 @@ sealed class QuestionTransport : HttpMessageHandler
         if (random)
             json = "[" + json + "," + json.Replace("42", "43") + "," + json.Replace("42", "43") + "," + json.Replace("42", "44") + "]";
         var status = Path.EndsWith("/999") ? HttpStatusCode.NotFound
-            : random && FailRandom ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK;
+            : (random && FailRandom) || (!random && FailById) ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK;
         return Task.FromResult(new HttpResponseMessage(status)
         {
             RequestMessage = request,

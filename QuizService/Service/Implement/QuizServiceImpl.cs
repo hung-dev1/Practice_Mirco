@@ -85,6 +85,52 @@ namespace QuizService.Service.Implement
             return added;
         }
 
+        public async Task<SubmitQuizResponse> SubmitQuizAsync(
+            long quizId, SubmitQuizRequest request, string authorization)
+        {
+            if (quizId <= 0)
+                throw new ArgumentException("QuizId must be greater than zero.");
+            if (request?.Answers is null)
+                throw new ArgumentException("Answers are required.");
+
+            var quiz = await FindQuizAsync(quizId);
+            if (!quiz.IsActive)
+                throw new InvalidOperationException("Quiz is not active.");
+
+            var questionIds = quiz.QuizQuestions.Select(q => q.QuestionId).ToHashSet();
+            if (questionIds.Count == 0)
+                throw new InvalidOperationException("Quiz has no questions.");
+
+            var answers = new Dictionary<long, string>();
+            foreach (var answer in request.Answers)
+            {
+                if (answer is null || answer.QuestionId <= 0 || string.IsNullOrEmpty(answer.Answer)
+                    || answer.Answer.Length != 1 || !"ABCD".Contains(char.ToUpperInvariant(answer.Answer[0])))
+                    throw new ArgumentException("Each answer must have a positive QuestionId and an answer A, B, C or D.");
+                if (!questionIds.Contains(answer.QuestionId))
+                    throw new ArgumentException($"Question {answer.QuestionId} does not belong to this quiz.");
+                if (!answers.TryAdd(answer.QuestionId, answer.Answer))
+                    throw new ArgumentException($"Question {answer.QuestionId} was answered more than once.");
+            }
+
+            var correctAnswers = 0;
+            foreach (var answer in answers)
+            {
+                var question = await _questionClient.GetByIdAsync(answer.Key, authorization);
+                if (string.Equals(answer.Value, question.CorrectAnswer, StringComparison.OrdinalIgnoreCase))
+                    correctAnswers++;
+            }
+
+            return new SubmitQuizResponse
+            {
+                QuizId = quiz.Id,
+                TotalQuestions = questionIds.Count,
+                AnsweredQuestions = answers.Count,
+                CorrectAnswers = correctAnswers,
+                Score = Math.Round(correctAnswers * 10m / questionIds.Count, 2)
+            };
+        }
+
         private async Task<Quiz> FindQuizAsync(long id)
             => await _repository.GetByIdAsync(id)
                 ?? throw new KeyNotFoundException($"Quiz with id {id} not found.");

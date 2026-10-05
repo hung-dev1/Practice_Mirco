@@ -70,5 +70,11 @@ namespace QuizService.Controllers
             long id, [FromQuery, Range(1, 100)] int count = 10)
             => Ok(await _service.AddRandomQuestionsAsync(
                 id, Request.Headers.Authorization.ToString(), count));
+
+        [HttpPost("{id:long}/submit")]
+        [Authorize(Roles = "STUDENT")]
+        public async Task<ActionResult<SubmitQuizResponse>> SubmitQuiz(long id, SubmitQuizRequest request)
+            => Ok(await _service.SubmitQuizAsync(
+                id, request, Request.Headers.Authorization.ToString()));
     }
 }
